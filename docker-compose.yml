@@ -100,6 +100,7 @@ services:
       POSTGRES_DB: customers
     volumes:
       - ./postgres_infra/custom-config.conf:/etc/postgresql/postgresql.conf
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     networks:
       - proxynet
@@ -145,6 +146,23 @@ services:
       - ./connect-data:/data
     networks:
       - proxynet
+
+  init-topics:
+    image: bitnamilegacy/kafka:3.7
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    volumes:
+      - ./ikafka:/ikafka
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        /bin/bash /ikafka/scripts/create-topics.sh
+    networks:
+      - proxynet
+
 networks:
   proxynet:
     name: custom_network
