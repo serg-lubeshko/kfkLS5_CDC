@@ -108,10 +108,10 @@ services:
   kafka-connect:
     build:
       context: ./kafka-connect
+    container_name: kafka-connect
     ports:
-      - "8083:8083"
-      - "9875:9875"
-      - "9876:9876"
+      - "127.0.0.1:8083:8083"
+      - "127.0.0.1:9404:9404"
     depends_on:
       - kafka-0
       - kafka-1
@@ -121,8 +121,8 @@ services:
     environment:
       BOOTSTRAP_SERVERS: kafka-0:9092,kafka-1:9092,kafka-2:9092
       REST_PORT: 8083
-      GROUP_ID: kafka-connect
       REST_ADVERTISED_HOST_NAME: kafka-connect
+      GROUP_ID: kafka-connect
 
       CONFIG_STORAGE_TOPIC: connect-config-storage
       OFFSET_STORAGE_TOPIC: connect-offset-storage
@@ -139,8 +139,22 @@ services:
       INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       INTERNAL_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
-      INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE:
+      INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+
       PLUGIN_PATH: /usr/share/java,/etc/kafka-connect/jars
+
+      JMX_PORT: 9999
+      KAFKA_JMX_OPTS: >-
+        -Djava.rmi.server.hostname=127.0.0.1
+        -Dcom.sun.management.jmxremote=true
+        -Dcom.sun.management.jmxremote.authenticate=false
+        -Dcom.sun.management.jmxremote.ssl=false
+        -Dcom.sun.management.jmxremote.port=9999
+        -Dcom.sun.management.jmxremote.rmi.port=9999
+
+      KAFKA_OPTS: >-
+        -javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=9404:/opt/jmx-exporter/config.yml
+
     volumes:
       - ./confluent-hub-components/:/etc/kafka-connect/jars
       - ./connect-data:/data
@@ -163,6 +177,35 @@ services:
     networks:
       - proxynet
 
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    restart: always
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - kafka-connect
+    networks:
+      - proxynet
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    restart: always
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - proxynet
+
 networks:
   proxynet:
     name: custom_network
@@ -171,3 +214,4 @@ volumes:
   kafka_0_data:
   kafka_1_data:
   kafka_2_data:
+  grafana_data:
