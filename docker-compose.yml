@@ -73,20 +73,20 @@ services:
     networks:
       - proxynet
 
-  schema-registry:
-    image: bitnamilegacy/schema-registry:7.6
-    restart: always
-    ports:
-      - "127.0.0.1:8081:8081"
-    depends_on:
-      - kafka-0
-      - kafka-1
-      - kafka-2
-    environment:
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-      SCHEMA_REGISTRY_KAFKA_BROKERS: PLAINTEXT://kafka-0:9092,PLAINTEXT://kafka-1:9092,PLAINTEXT://kafka-2:9092
-    networks:
-      - proxynet
+#  schema-registry:
+#    image: bitnamilegacy/schema-registry:7.6
+#    restart: always
+#    ports:
+#      - "127.0.0.1:8081:8081"
+#    depends_on:
+#      - kafka-0
+#      - kafka-1
+#      - kafka-2
+#    environment:
+#      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+#      SCHEMA_REGISTRY_KAFKA_BROKERS: PLAINTEXT://kafka-0:9092,PLAINTEXT://kafka-1:9092,PLAINTEXT://kafka-2:9092
+#    networks:
+#      - proxynet
 
   postgres:
     image: debezium/postgres:16
@@ -99,15 +99,15 @@ services:
       POSTGRES_PASSWORD: postgres-pw
       POSTGRES_DB: customers
     volumes:
-      - ./postgres_infra/custom-config.conf:/etc/postgresql/postgresql.conf
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres/custom-config.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/init-scripts:/docker-entrypoint-initdb.d
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     networks:
       - proxynet
 
   kafka-connect:
     build:
-      context: ./kafka-connect
+      context: ./connector/build
     container_name: kafka-connect
     ports:
       - "127.0.0.1:8083:8083"
@@ -116,7 +116,7 @@ services:
       - kafka-0
       - kafka-1
       - kafka-2
-      - schema-registry
+#      - schema-registry
       - postgres
     environment:
       BOOTSTRAP_SERVERS: kafka-0:9092,kafka-1:9092,kafka-2:9092
@@ -156,8 +156,9 @@ services:
         -javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=9404:/opt/jmx-exporter/config.yml
 
     volumes:
-      - ./confluent-hub-components/:/etc/kafka-connect/jars
+      - ./connector/confluent-hub-components/:/etc/kafka-connect/jars
       - ./connect-data:/data
+      - ./connector/config/postgres-connector.json:/etc/kafka-connect/config/postgres-connector.json
     networks:
       - proxynet
 
@@ -168,12 +169,12 @@ services:
       - kafka-1
       - kafka-2
     volumes:
-      - ./ikafka:/ikafka
+      - ./kafka/topics:/kafka/topics
     entrypoint:
       - /bin/bash
       - -c
       - |
-        /bin/bash /ikafka/scripts/create-topics.sh
+        /bin/bash /kafka/topics/00_create-topics.sh
     networks:
       - proxynet
 
