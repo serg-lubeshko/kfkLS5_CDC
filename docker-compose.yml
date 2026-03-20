@@ -154,16 +154,25 @@ services:
 
       KAFKA_OPTS: >-
         -javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=9404:/opt/jmx-exporter/config.yml
+    command:
+      - bash
+      - -c
+      - |
+        /docker-entrypoint.sh start &
+        /opt/connectors/register-connector.sh
+        wait
 
     volumes:
       - ./connector/confluent-hub-components/:/etc/kafka-connect/jars
       - ./connect-data:/data
-      - ./connector/config/postgres-connector.json:/etc/kafka-connect/config/postgres-connector.json
+      - ./connector/config/postgres-connector.json:/etc/kafka-connect/config/postgres-connector.json:ro
+      - ./connector/register-connector.sh:/opt/connectors/register-connector.sh:ro
     networks:
       - proxynet
 
   init-topics:
     image: bitnamilegacy/kafka:3.7
+    container_name: init-topics
     depends_on:
       - kafka-0
       - kafka-1
@@ -175,6 +184,7 @@ services:
       - -c
       - |
         /bin/bash /kafka/topics/00_create-topics.sh
+    restart: "no"
     networks:
       - proxynet
 
