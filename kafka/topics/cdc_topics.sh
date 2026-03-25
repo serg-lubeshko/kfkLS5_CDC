@@ -13,7 +13,7 @@ create_topic () {
     --topic $1 \
     --partitions 3 \
     --replication-factor 3 \
-    --config cleanup.policy=compact
+#    --config cleanup.policy=compact
 }
 
 create_topic customers.public.users
